@@ -125,8 +125,8 @@ All of them are not developed at this time. I just coded the ones I needed for m
 |Get-GrafanaFolderPermissions|[Link](http://docs.Grafana.org/http_api/folder_permissions/#Get-permissions-for-a-folder)|Token & Plaintext|OK|
 |New-GrafanaFolderPermissions|[Link](http://docs.Grafana.org/http_api/folder_permissions/#update-permissions-for-a-folder)|Token & Plaintext|OK|
 |Remove-GrafanaFolderPermissions|[Link](http://docs.Grafana.org/http_api/folder_permissions/#update-permissions-for-a-folder)|Token & Plaintext|OK|
-|Get-GrafanaDashboardPermissions|[Link](http://docs.Grafana.org/http_api/dashboard_permissions/#Get-permissions-for-a-Dashboard)|Token & Plaintext|not started|
-|New-GrafanaDashboardPermissions|[Link](http://docs.Grafana.org/http_api/dashboard_permissions/#update-permissions-for-a-Dashboard)|Token & Plaintext|not started|
+|Get-GrafanaDashboardPermissions|[Link](http://docs.Grafana.org/http_api/dashboard_permissions/#Get-permissions-for-a-Dashboard)|Token & Plaintext|OK|
+|New-GrafanaDashboardPermissions|[Link](http://docs.Grafana.org/http_api/dashboard_permissions/#update-permissions-for-a-Dashboard)|Token & Plaintext|OK|
 |Remove-GrafanaDashboardPermissions|[Link](http://docs.Grafana.org/http_api/dashboard_permissions/#update-permissions-for-a-Dashboard)|Token & Plaintext|not started|
 
 #### Other features

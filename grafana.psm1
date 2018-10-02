@@ -1269,6 +1269,97 @@ function Remove-GrafanaFolderPermissions{
     }
 }
 
+function Get-GrafanaDashboardPermissions{
+    <#
+    .SYNOPSIS
+        Function to list all permissions of a dashboard
+    .DESCRIPTION
+        Return example :
+            dashboardId    : 150
+            created        : 2018-09-20T15:24:06+02:00
+            updated        : 2018-09-20T15:24:06+02:00
+            userId         : 75
+            userLogin      : Foo Bar
+            userEmail      : foobar@nomail.com
+            userAvatarUrl  : /avatar/f1607519abb581cbc9029d02cfc0d0da
+            teamId         : 0
+            teamEmail      :
+            teamAvatarUrl  :
+            team           :
+            permission     : 1
+            permissionName : View
+            uid            : aqzsdefr
+            title          : dashboard_name
+            slug           : dashboard_name
+            isFolder       : False
+            url            : /d/aqzsdefr/dashboard_name
+            inherited      : True
+
+            dashboardId    : 151
+            created        : 2018-10-02T09:49:24+02:00
+            updated        : 2018-10-02T09:49:24+02:00
+            userId         : 77
+            userLogin      : Matth Gyver
+            userEmail      : matth.gyver@nomail.com
+            userAvatarUrl  : /avatar/362f7c0b744a025513a3c4ae5b6cf8a3
+            teamId         : 0
+            teamEmail      :
+            teamAvatarUrl  :
+            team           :
+            permission     : 1
+            permissionName : View
+            uid            : aqzsdefr
+            title          : dashboard_name
+            slug           : dashboard_name
+            isFolder       : False
+            url            : /d/aqzsdefr/dashboard_name
+            inherited      : False
+    .EXAMPLE
+        Get dashboard permissions of "foobar" folder :
+            Get-GrafanaDashboardPermissions -token th1sIsTh3mag1calT0k3n0fTheDeaTh -url "https://foobar.fr" `
+                                           -name foobar
+    .PARAMETER authLogin
+        Login for Grafana authentication
+    .PARAMETER authPassword
+        Password for Grafana authentication
+    .PARAMETER token
+        API key of Grafana Organization
+    .PARAMETER url
+        Grafana root URL
+    .PARAMETER name
+        Dashboard name
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$false)]
+        [string]$authLogin,
+        [Parameter(Mandatory=$false)]
+        [string]$authPassword,        
+        [Parameter(Mandatory=$false)]
+        [string]$authToken,
+        [Parameter(Mandatory=$false)]
+        [string]$url,
+        [Parameter(Mandatory=$false)]
+        [string]$name
+    )
+
+    $url = Set-Grafana-Url -url $url
+    $headers = Set-Grafana-Auth-Header -authLogin $authLogin -authPassword $authPassword `
+                                       -authToken $authToken
+
+    $dashboardId = (Get-GrafanaDashboard -authLogin $authLogin -authPassword $authPassword `
+                                     -authToken $authToken -url $url -name $name).id 
+    $resource = "/api/dashboards/id/$dashboardId/permissions"
+    $url += "$resource"
+
+    # Force using TLS v1.2
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    $permissions = Invoke-RestMethod -Uri $url -Headers $headers -Method Get -ContentType 'application/json;charset=utf-8'
+
+    return $permissions
+
+}
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #   Teams functions
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2852,6 +2943,7 @@ Export-ModuleMember -Function Get-GrafanaDatasource, `
                               Get-GrafanaFolderPermissions, `
                               New-GrafanaFolderPermissions, `
                               Remove-GrafanaFolderPermissions, `
+                              Get-GrafanaDashboardPermissions, `
                               New-GrafanaTeam, `
                               Get-GrafanaTeam, `
                               Remove-GrafanaTeam, `
