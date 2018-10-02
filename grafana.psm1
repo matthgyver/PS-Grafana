@@ -1269,6 +1269,349 @@ function Remove-GrafanaFolderPermissions{
     }
 }
 
+function Get-GrafanaDashboardPermissions{
+    <#
+    .SYNOPSIS
+        Function to list all permissions of a dashboard
+    .DESCRIPTION
+        Return example :
+            dashboardId    : 150
+            created        : 2018-09-20T15:24:06+02:00
+            updated        : 2018-09-20T15:24:06+02:00
+            userId         : 75
+            userLogin      : Foo Bar
+            userEmail      : foobar@nomail.com
+            userAvatarUrl  : /avatar/f1607519abb581cbc9029d02cfc0d0da
+            teamId         : 0
+            teamEmail      :
+            teamAvatarUrl  :
+            team           :
+            permission     : 1
+            permissionName : View
+            uid            : aqzsdefr
+            title          : dashboard_name
+            slug           : dashboard_name
+            isFolder       : False
+            url            : /d/aqzsdefr/dashboard_name
+            inherited      : True
+
+            dashboardId    : 151
+            created        : 2018-10-02T09:49:24+02:00
+            updated        : 2018-10-02T09:49:24+02:00
+            userId         : 77
+            userLogin      : Matth Gyver
+            userEmail      : matth.gyver@nomail.com
+            userAvatarUrl  : /avatar/362f7c0b744a025513a3c4ae5b6cf8a3
+            teamId         : 0
+            teamEmail      :
+            teamAvatarUrl  :
+            team           :
+            permission     : 1
+            permissionName : View
+            uid            : aqzsdefr
+            title          : dashboard_name
+            slug           : dashboard_name
+            isFolder       : False
+            url            : /d/aqzsdefr/dashboard_name
+            inherited      : False
+    .EXAMPLE
+        Get dashboard permissions of "foobar" folder :
+            Get-GrafanaDashboardPermissions -token th1sIsTh3mag1calT0k3n0fTheDeaTh -url "https://foobar.fr" `
+                                           -name foobar
+    .PARAMETER authLogin
+        Login for Grafana authentication
+    .PARAMETER authPassword
+        Password for Grafana authentication
+    .PARAMETER token
+        API key of Grafana Organization
+    .PARAMETER url
+        Grafana root URL
+    .PARAMETER dashboardName
+        Dashboard name
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$false)]
+        [string]$authLogin,
+        [Parameter(Mandatory=$false)]
+        [string]$authPassword,        
+        [Parameter(Mandatory=$false)]
+        [string]$authToken,
+        [Parameter(Mandatory=$false)]
+        [string]$url,
+        [Parameter(Mandatory=$false)]
+        [string]$dashboardName
+    )
+
+    $url = Set-Grafana-Url -url $url
+    $headers = Set-Grafana-Auth-Header -authLogin $authLogin -authPassword $authPassword `
+                                       -authToken $authToken
+
+    $dashboardId = (Get-GrafanaDashboard -authLogin $authLogin -authPassword $authPassword `
+                                     -authToken $authToken -url $url -name $dashboardName).id 
+    $resource = "/api/dashboards/id/$dashboardId/permissions"
+    $url += "$resource"
+
+    # Force using TLS v1.2
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    $permissions = Invoke-RestMethod -Uri $url -Headers $headers -Method Get -ContentType 'application/json;charset=utf-8'
+
+    return $permissions
+
+}
+#TODO:
+function New-GrafanaDashboardPermissions{
+    <#
+    .SYNOPSIS
+        Function to add a new permission to a dashboard.
+        If userId and teamId parameter is missing the permission is
+        allowed for all user with the role define in "role" parameter
+    .DESCRIPTION
+        Return example :          
+            message
+            -------
+            Folder permissions updated
+    .EXAMPLE
+        Add viewer role to user with uid 11 :
+            New-GrafanaDashboardPermissions -token th1sIsTh3mag1calT0k3n0fTheDeaTh -url "https://foobar.fr" `
+                                          -userId 11 -folderUid YCgsg8Mik -role Viewer
+        
+        Add editor role for user with editor role on the organisation :
+            New-GrafanaDashboardPermissions -token th1sIsTh3mag1calT0k3n0fTheDeaTh -url "https://foobar.fr" `
+                                           -folderUid YCgsg8Mik -role Editor
+    .PARAMETER authLogin
+        Login for Grafana authentication
+    .PARAMETER authPassword
+        Password for Grafana authentication
+    .PARAMETER token
+        API key of Grafana Organization
+    .PARAMETER url
+        Grafana root URL
+    .PARAMETER userLogin
+        Login of user to add in ACL        
+    .PARAMETER dashboardName
+        Name of the folder to modify    
+    .PARAMETER userId
+        User id (not uid !) from Grafana database
+    .PARAMETER teamId
+        Team id from Grafana database
+    .PARAMETER role
+        Role for the user into the organisation
+            Viewer : read access            (id 1)
+            Editor : Read / write access    (id 2)
+            Admin : administrator access    (id 4)
+    #>
+    param(
+        [Parameter(Mandatory=$false)]
+        [string]$authLogin,
+        [Parameter(Mandatory=$false)]
+        [string]$authPassword,        
+        [Parameter(Mandatory=$false)]
+        [string]$authToken,
+        [Parameter(Mandatory=$false)]
+        [string]$url,
+        [Parameter(Mandatory=$false)]
+        [string]$userLogin,
+        [Parameter(Mandatory=$false)]
+        [string]$dashboardName,        
+        [Parameter(Mandatory=$false)]
+        [int]$userId,
+        [Parameter(Mandatory=$false)]
+        [int]$teamId,    
+        [Parameter(Mandatory=$true)]
+        [ValidateSet("Viewer","Editor","Admin")]
+        [string]$role      
+    )
+
+    $permissionMapping = @{
+        Viewer = 1
+        Editor = 2
+        Admin  = 4
+    }
+    
+    $dashboardId = (Get-GrafanaDashboard -authLogin $authLogin -authPassword $authPassword `
+                                     -authToken $authToken -url $url -name $dashboardName).id
+
+    if ( $userId -eq 0 ){
+        $userId = (Get-GrafanaUser -authLogin $authLogin -authPassword $authPassword `
+                                    -url $url -login $userLogin).id
+    }
+
+    $url = Set-Grafana-Url -url $url
+    # Collect current permissions to rebuilt it with the new entry
+    $currentPermissions = Get-GrafanaDashboardPermissions -url $url -dashboardName $dashboardName `
+                                    -authLogin $authLogin -authPassword $authPassword -authToken $authToken
+    
+    $headers = Set-Grafana-Auth-Header -authLogin $authLogin -authPassword $authPassword `
+                                       -authToken $authToken
+
+    $rebuildedPermissions = @()
+    # # Build query body with the current permissions
+    foreach ($permission in $currentPermissions) {
+        if ($permission.inherited -eq $true){ continue }
+        $tmpAcl = @{}
+        if ( ( $permission.userId -eq 0 ) -and ( $permission.teamId -eq 0 ) ){
+            $tmpAcl.add('role', $permission.role)
+        }else{
+            $tmpAcl.add('userId',$permission.userId)
+            $tmpAcl.add('teamId',$permission.teamId)
+        }
+        $tmpAcl.add('permission',$permission.permission)
+        $rebuildedPermissions += $tmpAcl
+    }
+
+    # Add new permissions to the body
+    $newPermission = @{}
+    if ( ( $userId -eq 0 ) -and ( $teamId -eq 0 ) ){    # If addition is for 'system' group
+        $newPermission.add('role',$role)
+    }elseif ( $teamId -ne 0 ) {                         # If addition is for a team
+        $newPermission.add('teamId',$teamId)
+    }else{                                              # If addition is for user
+        $newPermission.add('userId',$userId)
+        $newPermission.add('teamId',0)
+    }
+    $newPermission.add('permission',$permissionMapping["$role"])
+
+    $rebuildedPermissions += $newPermission
+    $body = @{items = $rebuildedPermissions}
+    
+    $jsonBody = $body | ConvertTo-Json -Compress
+
+    $resource = "/api/dashboards/id/$dashboardId/permissions"
+    $url += "$resource"
+
+    # Force using TLS v1.2
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    try{
+        Invoke-RestMethod -Uri $url -Headers $headers -Method POST -ContentType 'application/json;charset=utf-8' `
+                        -Body $jsonBody
+    }catch{
+        Write-Error "Unable to modify dashboard permissions : $_"
+    }
+}
+
+function Remove-GrafanaDashboardPermissions{
+    <#
+    .SYNOPSIS
+        Function to remove a dashboard permission.
+        If userId and teamId parameter is missing the permission is
+        removed for all user with the role define in "role" parameter
+    .DESCRIPTION
+        Return example :          
+            message
+            -------
+            Folder permissions updated
+    .EXAMPLE
+        Remove-GrafanaFolderPermissions -token th1sIsTh3mag1calT0k3n0fTheDeaTh -url "https://foobar.fr" `
+                                          -userId 11 -folderUid YCgsg8Mik
+    .PARAMETER authLogin
+        Login for Grafana authentication
+    .PARAMETER authPassword
+        Password for Grafana authentication
+    .PARAMETER token
+        API key of Grafana Organization
+    .PARAMETER url
+        Grafana root URL
+    .PARAMETER userLogin
+        Login of user to remove from ACL
+    .PARAMETER userId
+        User id (not uid !) from Grafana database
+    .PARAMETER teamId
+        Team id from Grafana database
+    .PARAMETER dashboardName
+        Name of the dashboard to modify
+    .PARAMETER role
+        Role for the user into the organisation
+            Viewer : read access            (id 1)
+            Editor : Read / write access    (id 2)
+            Admin : administrator access    (id 4)
+    #>
+    param(
+        [Parameter(Mandatory=$false)]
+        [string]$authLogin,
+        [Parameter(Mandatory=$false)]
+        [string]$authPassword,        
+        [Parameter(Mandatory=$false)]
+        [string]$authToken,
+        [Parameter(Mandatory=$false)]
+        [string]$url,
+        [Parameter(Mandatory=$false)]
+        [string]$userLogin,
+        [Parameter(Mandatory=$false)]
+        [string]$dashboardName,                
+        [Parameter(Mandatory=$false)]
+        [int]$userId,
+        [Parameter(Mandatory=$false)]
+        [int]$teamId,       
+        [Parameter(Mandatory=$false)]
+        [ValidateSet("Viewer","Editor","Admin")]
+        [string]$role      
+    )
+
+    $url = Set-Grafana-Url -url $url
+    $dashboardId = (Get-GrafanaDashboard -authLogin $authLogin -authPassword $authPassword `
+                                     -authToken $authToken -url $url -name $dashboardName).id
+
+    if ( $userId -eq 0 ){
+        $userId = (Get-GrafanaUser -authLogin $authLogin -authPassword $authPassword `
+                                    -url $url -login $userLogin).id
+    }
+
+    $url = Set-Grafana-Url -url $url
+    # Collect current permissions to rebuilt it with the new entry
+    $currentPermissions = Get-GrafanaDashboardPermissions -url $url -dashboardName $dashboardName `
+                                    -authLogin $authLogin -authPassword $authPassword -authToken $authToken
+    
+    $headers = Set-Grafana-Auth-Header -authLogin $authLogin -authPassword $authPassword `
+                                       -authToken $authToken
+
+    $rebuildedPermissions = @()
+    # Build query body with the current permissions
+    # Not very sexy but most readable
+    foreach ($permission in $currentPermissions) {
+        if ($permission.inherited -eq $true){ continue }
+        $tmpAcl = @{}
+        # Don't add sys role in the rebuilded ACL if role parameter is alone
+        if ( ( $permission.userId -eq 0 ) -and ( $permission.teamId -eq 0 ) ){
+            if ( $permission.role -imatch "^$role$" ){
+                continue
+            }else{
+                $tmpAcl.add('role', $permission.role)
+            }
+        # Don't add user in the rebuilded ACL if current ID match parameter and ACE is for user
+        # Presence of userLogin indicate that the entry is for a user
+        }elseif( ($permission.userId -eq $userId ) -and ( $permission.userLogin -ne "" ) ){
+            continue
+        # Don't add team in the rebuilded ACL if current ID match parameter and ACE is not for user
+        }elseif( ( $permission.teamId -eq $teamId ) -and ( $permission.userLogin -eq "" ) ) {
+            continue
+        }
+        else{
+            $tmpAcl.add('userId',$permission.userId)
+            $tmpAcl.add('teamId',$permission.teamId)
+        }
+        $tmpAcl.add('permission',$permission.permission)
+        $rebuildedPermissions += $tmpAcl
+    }
+
+    $body = @{items = $rebuildedPermissions}
+    
+    $jsonBody = $body | ConvertTo-Json -Compress
+
+    $resource = "/api/dashboards/id/$dashboardId/permissions"
+    $url += "$resource"
+
+    # Force using TLS v1.2
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    try{
+            Invoke-RestMethod -Uri $url -Headers $headers -Method POST `
+                              -ContentType 'application/json;charset=utf-8' -Body $jsonBody
+                        
+    }catch{
+        Write-Error "Unable to modify folder permissions : $_"
+    }
+}
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #   Teams functions
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2852,6 +3195,9 @@ Export-ModuleMember -Function Get-GrafanaDatasource, `
                               Get-GrafanaFolderPermissions, `
                               New-GrafanaFolderPermissions, `
                               Remove-GrafanaFolderPermissions, `
+                              Get-GrafanaDashboardPermissions, `
+                              New-GrafanaDashboardPermissions, `
+                              Remove-GrafanaDashboardPermissions, `
                               New-GrafanaTeam, `
                               Get-GrafanaTeam, `
                               Remove-GrafanaTeam, `
