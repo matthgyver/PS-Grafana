@@ -1360,6 +1360,134 @@ function Get-GrafanaDashboardPermissions{
 
 }
 
+function New-GrafanaDashboardPermissions{
+    <#
+    .SYNOPSIS
+        Function to add a new permission to a folder.
+        If userId and teamId parameter is missing the permission is
+        allowed for all user with the role define in "role" parameter
+    .DESCRIPTION
+        Return example :          
+            message
+            -------
+            Folder permissions updated
+    .EXAMPLE
+        Add viewer role to user with uid 11 :
+            New-GrafanaFolderPermissions -token th1sIsTh3mag1calT0k3n0fTheDeaTh -url "https://foobar.fr" `
+                                          -userId 11 -folderUid YCgsg8Mik -role Viewer
+        
+        Add editor role for user with editor role on the organisation :
+            New-GrafanaFolderPermissions -token th1sIsTh3mag1calT0k3n0fTheDeaTh -url "https://foobar.fr" `
+                                           -folderUid YCgsg8Mik -role Editor
+    .PARAMETER authLogin
+        Login for Grafana authentication
+    .PARAMETER authPassword
+        Password for Grafana authentication
+    .PARAMETER token
+        API key of Grafana Organization
+    .PARAMETER url
+        Grafana root URL
+    .PARAMETER userLogin
+        Login of user to add in ACL        
+    .PARAMETER folderName
+        Name of the folder to modify    
+    .PARAMETER userId
+        User id (not uid !) from Grafana database
+    .PARAMETER teamId
+        Team id from Grafana database
+    .PARAMETER role
+        Role for the user into the organisation
+            Viewer : read access            (id 1)
+            Editor : Read / write access    (id 2)
+            Admin : administrator access    (id 4)
+    #>
+    param(
+        [Parameter(Mandatory=$false)]
+        [string]$authLogin,
+        [Parameter(Mandatory=$false)]
+        [string]$authPassword,        
+        [Parameter(Mandatory=$false)]
+        [string]$authToken,
+        [Parameter(Mandatory=$false)]
+        [string]$url,
+        [Parameter(Mandatory=$false)]
+        [string]$userLogin,
+        [Parameter(Mandatory=$false)]
+        [string]$folderName,        
+        [Parameter(Mandatory=$false)]
+        [int]$userId,
+        [Parameter(Mandatory=$false)]
+        [int]$teamId,    
+        [Parameter(Mandatory=$true)]
+        [ValidateSet("Viewer","Editor","Admin")]
+        [string]$role      
+    )
+
+    $permissionMapping = @{
+        Viewer = 1
+        Editor = 2
+        Admin  = 4
+    }
+    
+    $folderUid = (Get-GrafanaFolder -authLogin $authLogin -authPassword $authPassword `
+                                     -authToken $authToken -url $url -name $folderName).uid
+
+    if ( $userId -eq 0 ){
+        $userId = (Get-GrafanaUser -authLogin $authLogin -authPassword $authPassword `
+                                    -url $url -login $userLogin).id
+    }
+
+    $url = Set-Grafana-Url -url $url
+    # Collect current permissions to rebuilt it with the new entry
+    $currentPermissions = Get-GrafanaFolderPermissions -url $url -name $folderName `
+                                    -authLogin $authLogin -authPassword $authPassword -authToken $authToken
+    
+    $headers = Set-Grafana-Auth-Header -authLogin $authLogin -authPassword $authPassword `
+                                       -authToken $authToken
+
+    $rebuildedPermissions = @()
+    # Build query body with the current permissions
+    foreach ($permission in $currentPermissions) {
+        $tmpAcl = @{}
+        if ( ( $permission.userId -eq 0 ) -and ( $permission.teamId -eq 0 ) ){
+            $tmpAcl.add('role', $permission.role)
+        }else{
+            $tmpAcl.add('userId',$permission.userId)
+            $tmpAcl.add('teamId',$permission.teamId)
+        }
+        $tmpAcl.add('permission',$permission.permission)
+        $rebuildedPermissions += $tmpAcl
+    }
+
+    # Add new permissions to the body
+    $newPermission = @{}
+    if ( ( $userId -eq 0 ) -and ( $teamId -eq 0 ) ){    # If addition is for 'system' group
+        $newPermission.add('role',$role)
+    }elseif ( $teamId -ne 0 ) {                         # If addition is for a team
+        $newPermission.add('teamId',$teamId)
+    }else{                                              # If addition is for user
+        $newPermission.add('userId',$userId)
+    }
+    $newPermission.add('permission',$permissionMapping["$role"])
+
+    $rebuildedPermissions += $newPermission
+    $body = @{items = $rebuildedPermissions}
+    
+    $jsonBody = $body | ConvertTo-Json -Compress
+
+    $resource = "/api/folders/$folderUid/permissions"
+    $url += "$resource"
+
+    # Force using TLS v1.2
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    try{
+        Invoke-RestMethod -Uri $url -Headers $headers -Method POST -ContentType 'application/json;charset=utf-8' `
+                        -Body $jsonBody
+    }catch{
+        Write-Error "Unable to modify folder permissions : $_"
+    }
+}
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #   Teams functions
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2944,6 +3072,7 @@ Export-ModuleMember -Function Get-GrafanaDatasource, `
                               New-GrafanaFolderPermissions, `
                               Remove-GrafanaFolderPermissions, `
                               Get-GrafanaDashboardPermissions, `
+                              New-GrafanaDashboardPermissions, `
                               New-GrafanaTeam, `
                               Get-GrafanaTeam, `
                               Remove-GrafanaTeam, `
