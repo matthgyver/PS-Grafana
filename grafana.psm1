@@ -1158,7 +1158,7 @@ function Remove-GrafanaFolderPermissions{
         Return example :          
             message
             -------
-            Dashboard permissions updated
+            Folder permissions updated
     .EXAMPLE
         Remove-GrafanaFolderPermissions -token th1sIsTh3mag1calT0k3n0fTheDeaTh -url "https://foobar.fr" `
                                           -userId 11 -folderUid YCgsg8Mik
