@@ -2166,6 +2166,78 @@ function New-GrafanaUser{
                         -Body $jsonBody
 }
 
+function Set-GrafanaUser{
+    <#
+    .SYNOPSIS
+    Function to update a local user property
+    .DESCRIPTION
+        For user interactions, Grafana need user / password authentication (API token is'nt enough)
+         http://docs.grafana.org/http_api/user/
+        Return example :
+            id message
+            -- -------
+            31 User updated
+    .EXAMPLE
+        Set-GrafanaUser -url "https://foobar.fr" -authLogin admin -authPassword Passw0rd `
+                        -name "Foo Bar" -email "foo@bar.com" -login "foobar"
+    .PARAMETER authLogin
+        Login for Grafana authentication
+    .PARAMETER authPassword
+        Password for Grafana authentication
+    .PARAMETER url
+        Grafana root URL
+    .PARAMETER name
+        Current or new common name of the user
+    .PARAMETER email
+        Current or new address of the new user
+    .PARAMETER login
+        Current or new login of the new user
+    #>
+
+    param(
+        [Parameter(Mandatory=$false)]
+        [string]$authLogin,
+        [Parameter(Mandatory=$false)]
+        [string]$authPassword,
+        [Parameter(Mandatory=$false)]
+        [string]$url,
+        [Parameter(Mandatory=$false)]
+        [string]$name,
+        [Parameter(Mandatory=$false)]
+        [string]$email,
+        [Parameter(Mandatory=$true)]
+        [string]$login
+    )
+
+    $url = Set-Grafana-Url -url $url
+    $headers = Set-Grafana-Auth-Header -authLogin $authLogin -authPassword $authPassword
+
+    $userID = (Get-GrafanaUser -authLogin $authLogin -authPassword $authPassword `
+    -url $url -login $login).id
+
+    $body = @{
+        login = $login
+    }
+
+    if ( $name -notmatch "^$" ){
+        $body.add("name",$name)
+    }
+    
+    if ( $email -notmatch "^$" ){
+        $body.add("email",$email)
+    }
+
+    $jsonBody = $body | ConvertTo-Json -Compress
+
+    $resource = "/api/users/$userID"
+    $url += "$resource"
+
+    # Force using TLS v1.2
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    Invoke-RestMethod -Uri $url -Method Put -ContentType 'application/json;charset=utf-8' -Headers $headers `
+                        -Body $jsonBody
+}
+
 function Remove-GrafanaUser{
     <#
     .SYNOPSIS
@@ -3205,6 +3277,7 @@ Export-ModuleMember -Function Get-GrafanaDatasource, `
                               Set-GrafanaTeam, `
                               Set-GrafanaContext, `
                               Get-GrafanaUser, `
+                              Set-GrafanaUser, `
                               Get-GrafanaUserOrgs, `
                               New-GrafanaUser, `
                               Remove-GrafanaUser, `
