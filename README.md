@@ -169,6 +169,7 @@ All of them are not developed at this time. I just coded the ones I needed for m
 |----------|---------------------------|--------------|:--:|
 |Get-GrafanaUser|[Link](http://docs.Grafana.org/http_api/user/#Get-single-user-by-username-login-or-email)|Plaintext only|OK|
 |New-GrafanaUser|[Link](http://docs.Grafana.org/http_api/admin/#global-users)|Plaintext only|OK|
+|Set-GrafanaUser|[Link](https://grafana.com/docs/grafana/latest/http_api/user/#user-update)|Plaintext only|OK|
 |Get-GrafanaUserOrgs|[Link](http://docs.Grafana.org/http_api/user/#Get-organisations-for-user)|Plaintext only|OK|
 |Remove-GrafanaUser|[Link](http://docs.Grafana.org/http_api/admin/#delete-global-user)|Plaintext only|OK|
 |Set-GrafanaContext|[Link](http://docs.Grafana.org/http_api/user/#switch-user-context-for-a-specified-user)|Plaintext only|OK|
