@@ -2169,14 +2169,14 @@ function New-GrafanaUser{
 function Set-GrafanaUser{
     <#
     .SYNOPSIS
-    Function to modify a local user
+    Function to update a local user property
     .DESCRIPTION
         For user interactions, Grafana need user / password authentication (API token is'nt enough)
          http://docs.grafana.org/http_api/user/
         Return example :
             id message
             -- -------
-            31 User created
+            31 User updated
     .EXAMPLE
         Set-GrafanaUser -url "https://foobar.fr" -authLogin admin -authPassword Passw0rd `
                         -name "Foo Bar" -email "foo@bar.com" -login "foobar"
