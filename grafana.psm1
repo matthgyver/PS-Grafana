@@ -149,7 +149,7 @@ function Get-GrafanaDashboard{
                                        -authToken $authToken
 
     $resource = "/api/search"
-    $param = "?type=dash-db&query="
+    $param = "?type=dash-db&limit=100000&query="
     $url += "$resource/$param"
     # Force using TLS v1.2
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -664,7 +664,7 @@ function Get-GrafanaFolderList{
             tags      : {}
             isStarred : False
 
-        API equivalent : /api/search?type=dash-folder&query=
+        API equivalent : /api/search?type=dash-folder&limit=100000&query=
     .EXAMPLE
         Get-GrafanaFolderList -token th1sIsTh3mag1calT0k3n0fTheDeaTh -url "https://foobar.fr"
     .PARAMETER authLogin
@@ -692,7 +692,7 @@ function Get-GrafanaFolderList{
                                         -authToken $authToken
 
     $resource = "/api/search"
-    $param = "?type=dash-folder&query="
+    $param = "?type=dash-folder&limit=100000&query="
     $url += "$resource/$param"
     # Force using TLS v1.2
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
